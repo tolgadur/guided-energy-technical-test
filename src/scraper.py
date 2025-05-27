@@ -67,7 +67,7 @@ def get_city_data(city: str, id_token: str, position: int):
             response_data = {
                 "name": location["displayName"][0],
                 "coordinate": f"{location['latitude'][0]},{location['longitude'][0]}",
-                "placeId": location["placeId"][0],
+                "placeID": location["placeId"][0],
                 "position": position,
             }
             return response_data

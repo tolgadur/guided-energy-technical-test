@@ -5,7 +5,7 @@ import re
 
 from api_types import LoginRequest, AddFavoriteRequest
 from scraper import scrape_all_cities, get_city_data
-
+from db import create_db_and_tables, store_new_favorite_cities
 
 app = FastAPI()
 
@@ -69,6 +69,7 @@ def get_favorites(id_token: str = Cookie(...)):
     # get favourite cities
     locations = response.json().get("locations", [])
     favourite_cities = [loc["name"] for loc in locations]
+    store_new_favorite_cities(locations)
 
     return {"favorites": favourite_cities}
 
@@ -95,8 +96,13 @@ def add_favorite(request: AddFavoriteRequest, id_token: str = Cookie(...)):
     if response.status_code != 200:
         raise HTTPException(status_code=response.status_code, detail=response.text)
 
+    print("Storing new data in db.")
+    store_new_favorite_cities(locations)
+
     return {"status": "ok"}
 
 
 if __name__ == "__main__":
+    create_db_and_tables()
+    print("DB created.")
     uvicorn.run(app, host="0.0.0.0", port=8000)
