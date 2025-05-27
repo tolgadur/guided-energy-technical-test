@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import re
+from fastapi import HTTPException
 
 CITY_CODES = {
     "London": "0b8697c01baca04214b4abd206319d3eba60db5fb05c191012c4e02f6bdb23a4",
@@ -40,3 +41,35 @@ def scrape_all_cities():
         except Exception as e:
             print(f"Failed to get weather for {city}: {e}")
     return results
+
+
+def get_city_data(city: str, id_token: str, position: int):
+    url = "https://weather.com/api/v1/p/redux-dal"
+    payload = [
+        {
+            "name": "getSunV3LocationSearchUrlConfig",
+            "params": {
+                "query": city,
+                "language": "en-GB",
+                "locationType": "locale",
+            },
+        }
+    ]
+    response = requests.post(url, cookies={"id_token": id_token}, json=payload)
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # build response
+    data = response.json()["dal"]["getSunV3LocationSearchUrlConfig"]
+    for result in data.values():
+        if result.get("loaded") and "data" in result:
+            location = result["data"]["location"]
+            response_data = {
+                "name": location["displayName"][0],
+                "coordinate": f"{location['latitude'][0]},{location['longitude'][0]}",
+                "placeId": location["placeId"][0],
+                "position": position,
+            }
+            return response_data
+
+    raise HTTPException(status_code=404, detail="No location data found")

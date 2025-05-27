@@ -3,8 +3,8 @@ import uvicorn
 import requests
 import re
 
-from api_types import LoginRequest
-from scraper import scrape_all_cities
+from api_types import LoginRequest, AddFavoriteRequest
+from scraper import scrape_all_cities, get_city_data
 
 
 app = FastAPI()
@@ -67,15 +67,35 @@ def get_favorites(id_token: str = Cookie(...)):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     # get favourite cities
-    try:
-        locations = response.json()["locations"]
-        favourite_cities = [loc["name"] for loc in locations]
-    except (KeyError, IndexError):
-        print(f"{response.json()=}")
-        raise HTTPException(status_code=500, detail="Unexpected response structure")
+    locations = response.json().get("locations", [])
+    favourite_cities = [loc["name"] for loc in locations]
 
     return {"favorites": favourite_cities}
 
+
+@app.post("/favorites")
+def add_favorite(request: AddFavoriteRequest, id_token: str = Cookie(...)):
+    url = "https://upsx.weather.com/preference"
+    response = requests.get(url, cookies={"id_token": id_token})
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    data = response.json()
+    locations = data.get("locations", [])
+    counter = len(locations)
+
+    for city in request.favorite_cities:
+        city_data = get_city_data(city, id_token, counter)
+        locations.append(city_data)
+        counter += 1
+
+    print("Putting new data in.")
+    data["locations"] = locations
+    response = requests.put(url, json=data, cookies={"id_token": id_token})
+    if response.status_code != 200:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":

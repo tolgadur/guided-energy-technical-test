@@ -18,3 +18,12 @@ Get favourites:
 curl -X GET  http://localhost:8000/favorites \
 -b "id_token=ID_TOKEN"
 ```
+
+Add favourites:
+
+```json
+curl -X POST http://localhost:8000/favorites \
+-H "Content-Type: application/json" \
+-b "id_token=ID_TOKEN"
+-d '{"favorite_cities": ["birmingham", "paris"]}'
+```

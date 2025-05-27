@@ -1,3 +1,4 @@
+from typing import List
 from pydantic import BaseModel
 
 
@@ -6,5 +7,5 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class AddFavouriteRequest(BaseModel):
-    authentication_token: str
+class AddFavoriteRequest(BaseModel):
+    favorite_cities: List[str]
