@@ -1,5 +1,7 @@
 # This is some basic readme for the challenge
 
+You need to set your OpenAI API key in an environment variable called `OPENAI_API_KEY`. 
+
 ## How would I scale this?
 
 Bunch of issues in this naive approach. Amongst others:

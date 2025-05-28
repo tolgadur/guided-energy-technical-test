@@ -48,3 +48,8 @@ def store_new_favorite_cities(locations: List[dict]):
         session.query(FavoriteCity).delete()
         session.add_all(favorite_cities)
         session.commit()
+
+
+def get_favourite_cities():
+    with Session(engine) as session:
+        return session.query(FavoriteCity).all()

@@ -9,12 +9,13 @@ from scraper import (
     get_city_data,
     scrape_weather as scrape_weather_for_city,
 )
-from db import create_db_and_tables, store_new_favorite_cities
+from db import create_db_and_tables, store_new_favorite_cities, get_favourite_cities
+from llm import ask_gpt
 
 app = FastAPI()
 
 
-def get_favourite_cities(locations: list[dict]):
+def get_favourite_cities_from_scraped_location(locations: list[dict]):
     ids = set()
     favourite_cities = []
     for loc in locations:
@@ -95,7 +96,7 @@ def get_favorites(id_token: str = Cookie(...)):
 
     # get favourite cities
     locations = response.json().get("locations", [])
-    favourite_cities = get_favourite_cities(locations)
+    favourite_cities = get_favourite_cities_from_scraped_location(locations)
     store_new_favorite_cities(favourite_cities)
 
     return {"favorites": favourite_cities}
@@ -124,10 +125,26 @@ def add_favorite(request: AddFavoriteRequest, id_token: str = Cookie(...)):
         raise HTTPException(status_code=response.status_code, detail=response.text)
 
     print("Storing new data in db.")
-    favourite_cities = get_favourite_cities(locations)
+    favourite_cities = get_favourite_cities_from_scraped_location(locations)
     store_new_favorite_cities(favourite_cities)
 
     return {"favourite_cities": favourite_cities}
+
+
+@app.get("/summary")
+def get_summary():
+    favourite_cities = get_favourite_cities()
+    prompt = (
+        "Give me a one-sentence summary of the weather in the following cities: "
+        + ", ".join(
+            f"{city.name} ({city.temperature}°C, {city.weather_condition})"
+            for city in favourite_cities
+        )
+        + ". For example: 'It's sunny in London and Manchester, rainy in Birmingham.'"
+    )
+    summary = ask_gpt(prompt)
+
+    return {"summary": summary}
 
 
 if __name__ == "__main__":
