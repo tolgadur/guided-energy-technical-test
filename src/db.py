@@ -34,9 +34,11 @@ def store_new_favorite_cities(locations: List[dict]):
     favorite_cities = [
         FavoriteCity(
             place_id=location["placeID"],
-            name=location["name"],
+            name=location["city"],
             coordinate=location["coordinate"],
             position=location["position"],
+            temperature=location["temperature"],
+            weather_condition=location["condition"],
         )
         for location in locations
         if not (location["placeID"] in seen or seen.add(location["placeID"]))

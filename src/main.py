@@ -4,10 +4,37 @@ import requests
 import re
 
 from api_types import LoginRequest, AddFavoriteRequest
-from scraper import scrape_all_cities, get_city_data
+from scraper import (
+    scrape_all_cities,
+    get_city_data,
+    scrape_weather as scrape_weather_for_city,
+)
 from db import create_db_and_tables, store_new_favorite_cities
 
 app = FastAPI()
+
+
+def get_favourite_cities(locations: list[dict]):
+    ids = set()
+    favourite_cities = []
+    for loc in locations:
+        name = loc["name"]
+        place_id = loc["placeID"]
+        if place_id in ids:
+            continue
+        ids.add(place_id)
+        weather = scrape_weather_for_city(name, place_id)
+        favourite_cities.append(
+            {
+                "city": name,
+                "placeID": place_id,
+                "condition": weather["condition"],
+                "position": loc["position"],
+                "coordinate": loc["coordinate"],
+                "temperature": weather["temperature"],
+            }
+        )
+    return favourite_cities
 
 
 @app.get("/")
@@ -68,8 +95,8 @@ def get_favorites(id_token: str = Cookie(...)):
 
     # get favourite cities
     locations = response.json().get("locations", [])
-    favourite_cities = [loc["name"] for loc in locations]
-    store_new_favorite_cities(locations)
+    favourite_cities = get_favourite_cities(locations)
+    store_new_favorite_cities(favourite_cities)
 
     return {"favorites": favourite_cities}
 
@@ -97,9 +124,10 @@ def add_favorite(request: AddFavoriteRequest, id_token: str = Cookie(...)):
         raise HTTPException(status_code=response.status_code, detail=response.text)
 
     print("Storing new data in db.")
-    store_new_favorite_cities(locations)
+    favourite_cities = get_favourite_cities(locations)
+    store_new_favorite_cities(favourite_cities)
 
-    return {"status": "ok"}
+    return {"favourite_cities": favourite_cities}
 
 
 if __name__ == "__main__":
