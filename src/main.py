@@ -1,18 +1,31 @@
+from typing import List
 from fastapi import FastAPI, HTTPException, Cookie
 import uvicorn
 import requests
 import re
 
-from api_types import LoginRequest, AddFavoriteRequest
+from api_types import LoginRequest, AddFavoriteRequest, AskRequest, AskResponse
 from scraper import (
     scrape_all_cities,
     get_city_data,
     scrape_weather as scrape_weather_for_city,
 )
-from db import create_db_and_tables, store_new_favorite_cities, get_favourite_cities
+from db import (
+    create_db_and_tables,
+    store_new_favorite_cities,
+    get_favourite_cities,
+    FavoriteCity,
+)
 from llm import ask_gpt
 
 app = FastAPI()
+
+
+def build_weather_context(cities: List[FavoriteCity]) -> str:
+    return "\n".join(
+        f"{city.name}: {city.temperature}°C, {city.weather_condition}"
+        for city in cities
+    )
 
 
 def get_favourite_cities_from_scraped_location(locations: list[dict]):
@@ -134,17 +147,32 @@ def add_favorite(request: AddFavoriteRequest, id_token: str = Cookie(...)):
 @app.get("/summary")
 def get_summary():
     favourite_cities = get_favourite_cities()
+    weather_context = build_weather_context(favourite_cities)
     prompt = (
         "Give me a one-sentence summary of the weather in the following cities: "
-        + ", ".join(
-            f"{city.name} ({city.temperature}°C, {city.weather_condition})"
-            for city in favourite_cities
-        )
+        + weather_context
         + ". For example: 'It's sunny in London and Manchester, rainy in Birmingham.'"
     )
     summary = ask_gpt(prompt)
 
     return {"summary": summary}
+
+
+@app.post("/ask", response_model=AskResponse)
+def ask_about_favourite_cities(request: AskRequest):
+    favourite_cities = get_favourite_cities()
+    weather_context = build_weather_context(favourite_cities)
+    prompt = (
+        f"Here is the weather data: {weather_context} "
+        + f"answer the following question: {request.query}"
+    )
+    answer = ask_gpt(prompt)
+
+    # extract matching cities from answer
+    city_names = [city.name for city in favourite_cities]
+    matching_cities = [name for name in city_names if name.lower() in answer.lower()]
+
+    return AskResponse(answer=answer, matching_cities=matching_cities)
 
 
 if __name__ == "__main__":

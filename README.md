@@ -44,3 +44,17 @@ curl -X POST http://localhost:8000/favorites \
 -b "id_token=ID_TOKEN"
 -d '{"favorite_cities": ["birmingham", "paris"]}'
 ```
+
+Summary request:
+
+```json
+curl -X GET http://localhost:8000/summary
+```
+
+Ask about favourite cities:
+
+```json
+curl -X POST http://localhost:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Which cities have sunny weather now so that I can go sunbathing?"}'
+```
